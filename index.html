@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Health Assistant</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+      .chat-container {
+        height: calc(100vh - 210px);
+        overflow-y: auto;
+      }
+      .appointment-list {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .mic-btn {
+        transition: all 0.2s ease;
+      }
+      .mic-btn.recording {
+        background-color: #ef4444;
+        animation: pulse 1.5s infinite;
+      }
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .recording-indicator {
+        display: none;
+        align-items: center;
+        color: #ef4444;
+      }
+      .recording-indicator.active {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+      <header class="bg-blue-600 text-white p-4 rounded-t-lg shadow-md">
+        <h1 class="text-2xl font-bold">Health Assistant</h1>
+        <p class="text-sm">Your personal AI healthcare companion</p>
+      </header>
+
+      <div class="mt-4 bg-white rounded-lg shadow-md p-4">
+        <!-- Tabs -->
+        <div class="flex border-b border-gray-200">
+          <button
+            id="chat-tab"
+            class="px-4 py-2 text-blue-600 font-medium border-b-2 border-blue-600"
+          >
+            Chat
+          </button>
+          <button
+            id="appointments-tab"
+            class="px-4 py-2 text-gray-600 font-medium"
+          >
+            Appointments
+          </button>
+        </div>
+
+        <!-- Chat Tab Content -->
+        <div id="chat-content" class="mt-4">
+          <div
+            class="chat-container border border-gray-200 rounded-lg p-4 mb-4"
+          >
+            <div id="chat-messages">
+              <div class="flex mb-4">
+                <div class="bg-blue-100 rounded-lg p-3 max-w-xs">
+                  <p class="text-sm text-blue-800">
+                    Hello! I'm your health assistant. How can I help you today?
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center">
+            <input
+              id="chat-input"
+              type="text"
+              class="flex-grow border border-gray-300 rounded-l-lg p-2"
+              placeholder="Type your message..."
+            />
+            <button
+              id="mic-btn"
+              class="bg-blue-600 text-white px-4 py-2 mic-btn"
+            >
+              <i class="fas fa-microphone"></i>
+            </button>
+            <button
+              id="send-btn"
+              class="bg-blue-600 text-white px-4 py-2 rounded-r-lg"
+            >
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+          <div
+            id="recording-indicator"
+            class="recording-indicator text-sm mt-2"
+          >
+            <i class="fas fa-circle mr-2"></i> Recording...
+            <span id="recording-time">0:00</span>
+          </div>
+        </div>
+        <div class="mt-4 bg-white rounded-lg shadow-md p-4">
+          <h2 class="text-xl font-semibold mb-2">Upload Image</h2>
+          <input
+            type="file"
+            id="imageInput"
+            accept="image/*"
+            class="border border-gray-300 p-2 rounded-lg w-full"
+          />
+          <button
+            id="uploadButton"
+            class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            Upload
+          </button>
+          <p id="uploadStatus" class="mt-2 text-sm text-gray-600"></p>
+          <div id="imagePreview" class="mt-4 hidden">
+            <h3 class="text-lg font-semibold">Preview:</h3>
+            <img
+              id="previewImg"
+              src=""
+              alt="Uploaded Image"
+              class="mt-2 rounded-lg max-w-xs"
+            />
+          </div>
+        </div>
+        <!-- Appointments Tab Content -->
+        <div id="appointments-content" class="mt-4 hidden">
+          <div class="mb-4">
+            <h2 class="text-xl font-semibold mb-2">Schedule an Appointment</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Date & Time</label
+                >
+                <input
+                  type="datetime-local"
+                  id="appt-datetime"
+                  class="w-full border border-gray-300 rounded-lg p-2"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Purpose</label
+                >
+                <input
+                  type="text"
+                  id="appt-purpose"
+                  class="w-full border border-gray-300 rounded-lg p-2"
+                  placeholder="e.g., Annual check-up"
+                />
+              </div>
+            </div>
+            <button
+              id="create-appt-btn"
+              class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
+            >
+              Schedule Appointment
+            </button>
+          </div>
+
+          <div>
+            <h2 class="text-xl font-semibold mb-2">Your Appointments</h2>
+            <button
+              id="refresh-appt-btn"
+              class="mb-2 bg-gray-200 text-gray-800 px-3 py-1 rounded-lg text-sm"
+            >
+              <i class="fas fa-sync-alt mr-1"></i> Refresh
+            </button>
+            <div
+              id="appointment-list"
+              class="appointment-list border border-gray-200 rounded-lg p-4"
+            >
+              <p class="text-gray-500 text-center">No appointments found</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Appointment Modal -->
+    <div
+      id="edit-modal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden"
+    >
+      <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <h2 class="text-xl font-semibold mb-4">Edit Appointment</h2>
+        <input type="hidden" id="edit-appt-id" />
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Date & Time</label
+          >
+          <input
+            type="datetime-local"
+            id="edit-datetime"
+            class="w-full border border-gray-300 rounded-lg p-2"
+          />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Purpose</label
+          >
+          <input
+            type="text"
+            id="edit-purpose"
+            class="w-full border border-gray-300 rounded-lg p-2"
+          />
+        </div>
+        <div class="flex justify-end space-x-2">
+          <button
+            id="close-modal-btn"
+            class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg"
+          >
+            Cancel
+          </button>
+          <button
+            id="save-edit-btn"
+            class="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Configuration
+      const API_URL = "https://ai-health-assistant-0art.onrender.com";
+      const USER_ID = "abcd"; // In a real app, this would come from authentication
+      marked.setOptions({
+        breaks: true,
+        sanitize: true,
+      });
+
+      // DOM Elements
+      const chatTab = document.getElementById("chat-tab");
+      const appointmentsTab = document.getElementById("appointments-tab");
+      const chatContent = document.getElementById("chat-content");
+      const appointmentsContent = document.getElementById(
+        "appointments-content"
+      );
+      const chatMessages = document.getElementById("chat-messages");
+      const chatInput = document.getElementById("chat-input");
+      const sendBtn = document.getElementById("send-btn");
+      const micBtn = document.getElementById("mic-btn");
+      const recordingIndicator = document.getElementById("recording-indicator");
+      const recordingTime = document.getElementById("recording-time");
+      const appointmentList = document.getElementById("appointment-list");
+      const refreshApptBtn = document.getElementById("refresh-appt-btn");
+      const createApptBtn = document.getElementById("create-appt-btn");
+      const apptDatetime = document.getElementById("appt-datetime");
+      const apptPurpose = document.getElementById("appt-purpose");
+      const editModal = document.getElementById("edit-modal");
+      const editApptId = document.getElementById("edit-appt-id");
+      const editDatetime = document.getElementById("edit-datetime");
+      const editPurpose = document.getElementById("edit-purpose");
+      const closeModalBtn = document.getElementById("close-modal-btn");
+      const saveEditBtn = document.getElementById("save-edit-btn");
+
+      // Voice recording variables
+      let mediaRecorder;
+      let audioChunks = [];
+      let isRecording = false;
+      let recordingStartTime;
+      let recordingTimer;
+
+      // Tab Switching
+      chatTab.addEventListener("click", () => {
+        chatTab.classList.add("text-blue-600", "border-b-2", "border-blue-600");
+        chatTab.classList.remove("text-gray-600");
+        appointmentsTab.classList.remove(
+          "text-blue-600",
+          "border-b-2",
+          "border-blue-600"
+        );
+        appointmentsTab.classList.add("text-gray-600");
+        chatContent.classList.remove("hidden");
+        appointmentsContent.classList.add("hidden");
+      });
+
+      appointmentsTab.addEventListener("click", () => {
+        appointmentsTab.classList.add(
+          "text-blue-600",
+          "border-b-2",
+          "border-blue-600"
+        );
+        appointmentsTab.classList.remove("text-gray-600");
+        chatTab.classList.remove(
+          "text-blue-600",
+          "border-b-2",
+          "border-blue-600"
+        );
+        chatTab.classList.add("text-gray-600");
+        appointmentsContent.classList.remove("hidden");
+        chatContent.classList.add("hidden");
+        fetchAppointments();
+      });
+
+      // Chat functionality
+      sendBtn.addEventListener("click", sendMessage);
+      chatInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          sendMessage();
+        }
+      });
+
+      // Voice recording functionality
+      micBtn.addEventListener("click", toggleRecording);
+
+      // New Audio recording handling functions that use OpenAI
+      async function toggleRecording() {
+        if (!isRecording) {
+          startRecording();
+        } else {
+          stopRecording();
+        }
+      }
+
+      async function startRecording() {
+        try {
+          // Request audio recording permission
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+
+          // Set up audio recorder with good quality for speech recognition
+          mediaRecorder = new MediaRecorder(stream, {
+            mimeType: "audio/webm;codecs=opus",
+            audioBitsPerSecond: 128000,
+          });
+
+          audioChunks = [];
+
+          // Handle data as it becomes available
+          mediaRecorder.addEventListener("dataavailable", (event) => {
+            audioChunks.push(event.data);
+          });
+
+          // Handle recording stop
+          mediaRecorder.addEventListener("stop", () => {
+            processAudio();
+            stopRecordingTimer();
+            // Stop the audio tracks to release the microphone
+            stream.getTracks().forEach((track) => track.stop());
+          });
+
+          // Start recording
+          mediaRecorder.start();
+          isRecording = true;
+          micBtn.classList.add("recording");
+          recordingIndicator.classList.add("active");
+          startRecordingTimer();
+        } catch (error) {
+          console.error("Error accessing microphone:", error);
+          alert(
+            "Error accessing microphone. Please ensure you have granted microphone permissions."
+          );
+        }
+      }
+
+      function stopRecording() {
+        if (mediaRecorder && isRecording) {
+          mediaRecorder.stop();
+          isRecording = false;
+          micBtn.classList.remove("recording");
+          recordingIndicator.classList.remove("active");
+        }
+      }
+
+      function startRecordingTimer() {
+        recordingStartTime = Date.now();
+        updateRecordingTime();
+        recordingTimer = setInterval(updateRecordingTime, 1000);
+      }
+
+      function stopRecordingTimer() {
+        clearInterval(recordingTimer);
+      }
+
+      function updateRecordingTime() {
+        const elapsedTime = Math.floor(
+          (Date.now() - recordingStartTime) / 1000
+        );
+        const minutes = Math.floor(elapsedTime / 60);
+        const seconds = elapsedTime % 60;
+        recordingTime.textContent = `${minutes}:${seconds
+          .toString()
+          .padStart(2, "0")}`;
+      }
+
+      function processAudio() {
+        // Create a blob from recorded chunks (use mp3 if available, otherwise webm)
+        const audioBlob = new Blob(audioChunks, {
+          type: mediaRecorder.mimeType || "audio/webm",
+        });
+
+        // Add a processing message to the chat
+        addMessageToChat("Processing your voice message...", "assistant", true);
+
+        // Send the audio to the server
+        sendAudioToServer(audioBlob);
+      }
+
+      function sendAudioToServer(audioBlob) {
+        const timestamp = new Date().getTime();
+        const filename = `recording_${timestamp}.webm`;
+
+        const formData = new FormData();
+        formData.append("audio_file", audioBlob, filename);
+
+        fetch(`${API_URL}/voice-to-text?user_id=${USER_ID}`, {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`Server error: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then((data) => {
+            const processingMessages = document.querySelectorAll(
+              ".processing-message"
+            );
+            if (processingMessages.length > 0) {
+              processingMessages.forEach((msg) => msg.remove());
+            }
+
+            if (data.transcribed_text) {
+              addMessageToChat(data.transcribed_text, "user");
+            }
+            addMessageToChat(data.response, "assistant");
+
+            if (
+              data.response.toLowerCase().includes("appointment") &&
+              (data.response.toLowerCase().includes("scheduled") ||
+                data.response.toLowerCase().includes("booked") ||
+                data.response.toLowerCase().includes("created") ||
+                data.response.toLowerCase().includes("updated") ||
+                data.response.toLowerCase().includes("changed") ||
+                data.response.toLowerCase().includes("modified"))
+            ) {
+              fetchAppointments();
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            const processingMessages = document.querySelectorAll(
+              ".processing-message"
+            );
+            if (processingMessages.length > 0) {
+              processingMessages.forEach((msg) => msg.remove());
+            }
+            addMessageToChat(
+              "Sorry, there was an error processing your voice message. Please try again.",
+              "assistant"
+            );
+          });
+      }
+
+      function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        addMessageToChat(message, "user");
+        chatInput.value = "";
+
+        fetch(`${API_URL}/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: USER_ID,
+            message: message,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            addMessageToChat(data.response, "assistant");
+            if (
+              data.response.toLowerCase().includes("appointment") &&
+              (data.response.toLowerCase().includes("scheduled") ||
+                data.response.toLowerCase().includes("booked") ||
+                data.response.toLowerCase().includes("created") ||
+                data.response.toLowerCase().includes("updated") ||
+                data.response.toLowerCase().includes("changed") ||
+                data.response.toLowerCase().includes("modified"))
+            ) {
+              fetchAppointments();
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            addMessageToChat(
+              "Sorry, there was an error processing your request.",
+              "assistant"
+            );
+          });
+      }
+
+      function addMessageToChat(message, sender, isProcessing = false) {
+        const messageDiv = document.createElement("div");
+        messageDiv.className =
+          "flex mb-4 " + (sender === "user" ? "justify-end" : "");
+
+        if (isProcessing) {
+          messageDiv.classList.add("processing-message");
+        }
+
+        const messageContent = document.createElement("div");
+        messageContent.className =
+          sender === "user"
+            ? "bg-blue-600 text-white rounded-lg p-3 max-w-xs"
+            : "bg-blue-100 rounded-lg p-3 max-w-xs";
+
+        const messageBody = document.createElement("div");
+        messageBody.className =
+          "text-sm " + (sender === "user" ? "text-white" : "text-blue-800");
+
+        // Convert markdown to HTML for assistant messages
+        if (sender === "assistant") {
+          messageBody.innerHTML = marked.parse(message);
+        } else {
+          messageBody.textContent = message;
+        }
+
+        messageContent.appendChild(messageBody);
+        messageDiv.appendChild(messageContent);
+        chatMessages.appendChild(messageDiv);
+
+        // Auto scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
+      // Appointments functionality
+      refreshApptBtn.addEventListener("click", fetchAppointments);
+      createApptBtn.addEventListener("click", createAppointment);
+      closeModalBtn.addEventListener("click", () => {
+        editModal.classList.add("hidden");
+      });
+      saveEditBtn.addEventListener("click", updateAppointment);
+
+      function fetchAppointments() {
+        fetch(`${API_URL}/appointments/${USER_ID}`)
+          .then((response) => response.json())
+          .then((data) => {
+            renderAppointments(data);
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            appointmentList.innerHTML =
+              '<p class="text-red-500 text-center">Error fetching appointments</p>';
+          });
+      }
+
+      function renderAppointments(appointments) {
+        if (appointments.length === 0) {
+          appointmentList.innerHTML =
+            '<p class="text-gray-500 text-center">No appointments found</p>';
+          return;
+        }
+
+        appointmentList.innerHTML = "";
+
+        // Sort appointments by date (newest first)
+        appointments.sort(
+          (a, b) => new Date(a.date_time) - new Date(b.date_time)
+        );
+
+        appointments.forEach((appt) => {
+          const apptDate = new Date(appt.date_time);
+          const formattedDate = apptDate.toLocaleDateString();
+          const formattedTime = apptDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          const apptDiv = document.createElement("div");
+          apptDiv.className =
+            "border-b border-gray-200 pb-3 mb-3 last:border-b-0 last:mb-0 last:pb-0";
+
+          apptDiv.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-medium">${formattedDate} at ${formattedTime}</p>
+                            <p class="text-gray-600">${appt.purpose}</p>
+                            <p class="text-sm text-gray-500">Status: ${appt.status}</p>
+                        </div>
+                        <div>
+                            <button class="edit-btn text-blue-600 hover:text-blue-800 mr-2" data-id="${appt.id}" 
+                                    data-datetime="${appt.date_time}" data-purpose="${appt.purpose}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="delete-btn text-red-600 hover:text-red-800" data-id="${appt.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+          appointmentList.appendChild(apptDiv);
+        });
+
+        // Add event listeners to edit and delete buttons
+        document.querySelectorAll(".edit-btn").forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const id = this.getAttribute("data-id");
+            const datetime = this.getAttribute("data-datetime");
+            const purpose = this.getAttribute("data-purpose");
+
+            editApptId.value = id;
+            // Convert ISO string to format expected by datetime-local input
+            editDatetime.value = datetime.substring(0, 16);
+            editPurpose.value = purpose;
+
+            editModal.classList.remove("hidden");
+          });
+        });
+
+        document.querySelectorAll(".delete-btn").forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const id = this.getAttribute("data-id");
+            if (confirm("Are you sure you want to delete this appointment?")) {
+              deleteAppointment(id);
+            }
+          });
+        });
+      }
+
+      function createAppointment() {
+        const datetime = apptDatetime.value;
+        const purpose = apptPurpose.value.trim();
+
+        if (!datetime || !purpose) {
+          alert("Please fill in all fields");
+          return;
+        }
+
+        fetch(`${API_URL}/appointments`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: USER_ID,
+            date_time: new Date(datetime).toISOString(),
+            purpose: purpose,
+          }),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to create appointment");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            apptDatetime.value = "";
+            apptPurpose.value = "";
+            fetchAppointments();
+            alert("Appointment created successfully");
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("Error creating appointment");
+          });
+      }
+
+      function updateAppointment() {
+        const id = editApptId.value;
+        const datetime = editDatetime.value;
+        const purpose = editPurpose.value.trim();
+
+        if (!datetime || !purpose) {
+          alert("Please fill in all fields");
+          return;
+        }
+
+        fetch(`${API_URL}/appointments/${id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            date_time: new Date(datetime).toISOString(),
+            purpose: purpose,
+          }),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to update appointment");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            editModal.classList.add("hidden");
+            fetchAppointments();
+            alert("Appointment updated successfully");
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("Error updating appointment");
+          });
+      }
+
+      function deleteAppointment(id) {
+        fetch(`${API_URL}/appointments/${id}`, {
+          method: "DELETE",
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error("Failed to delete appointment");
+            }
+            return response.json();
+          })
+          .then((data) => {
+            fetchAppointments();
+            alert("Appointment deleted successfully");
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("Error deleting appointment");
+          });
+      }
+
+      // Set default values
+      const now = new Date();
+      now.setMinutes(now.getMinutes() + 30); // Add 30 minutes to current time
+
+      // Format for datetime-local input (YYYY-MM-DDTHH:mm)
+      const pad = (n) => n.toString().padStart(2, "0");
+      const localDateTime =
+        now.getFullYear() +
+        "-" +
+        pad(now.getMonth() + 1) +
+        "-" +
+        pad(now.getDate()) +
+        "T" +
+        pad(now.getHours()) +
+        ":" +
+        pad(now.getMinutes());
+
+      apptDatetime.value = localDateTime;
+
+      // Check browser support for Web Speech API
+      if (
+        !("webkitSpeechRecognition" in window) &&
+        !("SpeechRecognition" in window) &&
+        !("MediaRecorder" in window)
+      ) {
+        micBtn.classList.add("hidden");
+        alert(
+          "Voice recording is not supported in this browser. Please use Chrome, Edge, or Safari for voice features."
+        );
+      }
+      document
+        .getElementById("uploadButton")
+        .addEventListener("click", function () {
+          console.log("Upload button clicked");
+
+          const fileInput = document.getElementById("imageInput");
+          const uploadStatus = document.getElementById("uploadStatus");
+          const imagePreview = document.getElementById("imagePreview");
+          const previewImg = document.getElementById("previewImg");
+
+          if (!fileInput.files.length) {
+            uploadStatus.textContent = "Please select an image file.";
+            return;
+          }
+
+          const file = fileInput.files[0];
+          const formData = new FormData();
+          formData.append("image_file", file);
+
+          // You can optionally let the user add a custom prompt here
+          const prompt = "What do you see in this medical image?";
+          formData.append("prompt", prompt);
+
+          fetch("http://localhost:8000/analyze-image?user_id=123", {
+            method: "POST",
+            body: formData,
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              console.log("Server Response:", data);
+
+              if (data.analysis) {
+                uploadStatus.textContent =
+                  "Image uploaded and analyzed successfully!";
+                imagePreview.classList.remove("hidden");
+                previewImg.src = URL.createObjectURL(file);
+
+                // ✅ Show messages in the chat
+                addMessageToChat("Uploaded an image for analysis.", "user");
+
+                // This is the key missing piece!
+                addMessageToChat(data.analysis, "assistant");
+              } else {
+                uploadStatus.textContent = "Failed to upload or analyze image.";
+                addMessageToChat(
+                  "Image uploaded but no analysis was returned.",
+                  "assistant"
+                );
+              }
+            })
+            .catch((error) => {
+              console.error("Upload error:", error);
+              uploadStatus.textContent = "Error uploading image.";
+              addMessageToChat(
+                "There was an error uploading the image.",
+                "assistant"
+              );
+            });
+        });
+    </script>
+  </body>
+</html>
